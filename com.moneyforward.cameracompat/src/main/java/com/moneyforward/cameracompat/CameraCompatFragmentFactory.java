@@ -14,7 +14,7 @@ public class CameraCompatFragmentFactory {
     public static CameraCompatFragment getInstance() {
         CameraCompatFragment fragment;
 
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
             fragment = Camera1Fragment.newInstance();
         } else {
             fragment = Camera2Fragment.newInstance();

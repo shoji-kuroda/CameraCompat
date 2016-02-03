@@ -13,6 +13,7 @@ import android.graphics.Matrix;
 import android.graphics.Point;
 import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
+import android.hardware.SensorManager;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
@@ -36,6 +37,7 @@ import android.util.Log;
 import android.util.Size;
 import android.util.SparseIntArray;
 import android.view.LayoutInflater;
+import android.view.OrientationEventListener;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
@@ -73,6 +75,9 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
         ORIENTATIONS.append(Surface.ROTATION_180, 270);
         ORIENTATIONS.append(Surface.ROTATION_270, 180);
     }
+
+    private OrientationEventListener orientationEventListener;
+    private int lastOrientation = OrientationEventListener.ORIENTATION_UNKNOWN;
 
     private enum CameraState {
         STATE_PREVIEW(0),
@@ -352,6 +357,18 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             openCamera(cameraPreview.getWidth(), cameraPreview.getHeight());
         } else {
             cameraPreview.setSurfaceTextureListener(surfaceTextureListener);
+        }
+        orientationEventListener = new OrientationEventListener(getActivity(), SensorManager.SENSOR_DELAY_NORMAL) {
+            @Override
+            public void onOrientationChanged(int orientation) {
+                lastOrientation = orientation;
+            }
+        };
+        if (orientationEventListener.canDetectOrientation()) {
+            orientationEventListener.enable();
+        } else {
+            orientationEventListener.disable();
+            orientationEventListener = null;
         }
     }
 
@@ -728,12 +745,17 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             captureBuilder.set(CaptureRequest.CONTROL_AE_MODE,
                     CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
 
-            // Orientation
-            int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
-            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, ORIENTATIONS.get(rotation));
-
+            // 保存する画像の向きを計算
+            int pictureOrientation = 0;
+            if (lastOrientation != android.view.OrientationEventListener.ORIENTATION_UNKNOWN) {
+                CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
+                CameraCharacteristics cc = manager.getCameraCharacteristics(this.cameraId);
+                int sensorOrientation = cc.get(CameraCharacteristics.SENSOR_ORIENTATION);
+                int deviceOrientation = (lastOrientation + 45) / 90 * 90;
+                pictureOrientation = (sensorOrientation + deviceOrientation + 360) % 360;
+            }
+            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, pictureOrientation);
             CameraCaptureSession.CaptureCallback CaptureCallback = new CameraCaptureSession.CaptureCallback() {
-
                 @Override
                 public void onCaptureCompleted(@NonNull CameraCaptureSession session,
                                                @NonNull CaptureRequest request,
