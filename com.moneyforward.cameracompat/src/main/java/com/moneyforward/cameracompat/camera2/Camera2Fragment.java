@@ -474,12 +474,10 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                 int orientation = getResources().getConfiguration().orientation;
                 if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
                     cameraPreview.setAspectRatio(
-                            previewSize.getWidth(), previewSize.getHeight(),
-                            getActivity().getWindowManager().getDefaultDisplay().getRotation());
+                            previewSize.getWidth(), previewSize.getHeight());
                 } else {
                     cameraPreview.setAspectRatio(
-                            previewSize.getHeight(), previewSize.getWidth(),
-                            getActivity().getWindowManager().getDefaultDisplay().getRotation());
+                            previewSize.getHeight(), previewSize.getWidth());
                 }
                 this.cameraId = cameraId;
                 return;
