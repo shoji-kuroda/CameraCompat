@@ -3,7 +3,6 @@ package com.moneyforward.cameracompat.sample;
 import android.Manifest;
 import android.content.DialogInterface;
 import android.graphics.Bitmap;
-import android.media.ExifInterface;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
@@ -35,12 +34,9 @@ public class CameraActivity extends AppCompatActivity implements CameraCompatCal
         setContentView(R.layout.activity_camera);
 
         this.cameraFragment = CameraCompatFragmentFactory.getInstance();
-        if (savedInstanceState == null) {
-            getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.container, (Fragment) cameraFragment)
-                    .commitAllowingStateLoss();
-        }
-
+        getSupportFragmentManager().beginTransaction()
+                .replace(R.id.container, (Fragment) cameraFragment)
+                .commitAllowingStateLoss();
         this.cameraFragment.setCallbackListener(this);
         findViewById(R.id.btnShutter).setOnClickListener(new View.OnClickListener() {
             @Override
@@ -62,10 +58,6 @@ public class CameraActivity extends AppCompatActivity implements CameraCompatCal
             fos = new FileOutputStream(file);
             bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
             bitmap.recycle();
-
-            ExifInterface exif = new ExifInterface(file.getAbsolutePath());
-            int orientation = Integer.parseInt(exif.getAttribute(ExifInterface.TAG_ORIENTATION));
-
             Toast.makeText(this, file.getAbsolutePath(), Toast.LENGTH_LONG).show();
         } catch (IOException e) {
         } finally {
