@@ -1,6 +1,6 @@
 apply plugin: 'com.android.library'
 
-def PACKAGE_NAME = "com.moneyforward.cameracompa"
+def PACKAGE_NAME = "com.moneyforward.cameracompat"
 
 android {
     compileSdkVersion 23
