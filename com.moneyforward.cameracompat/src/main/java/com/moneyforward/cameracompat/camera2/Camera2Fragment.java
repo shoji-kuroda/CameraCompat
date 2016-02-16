@@ -366,6 +366,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
         };
         if (orientationEventListener.canDetectOrientation()) {
             orientationEventListener.enable();
+
         } else {
             orientationEventListener.disable();
             orientationEventListener = null;
@@ -747,13 +748,23 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
 
             // 保存する画像の向きを計算
             int pictureOrientation = 0;
+            int deviceOrientation = 0;
             if (lastOrientation != android.view.OrientationEventListener.ORIENTATION_UNKNOWN) {
-                CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
-                CameraCharacteristics cc = manager.getCameraCharacteristics(this.cameraId);
-                int sensorOrientation = cc.get(CameraCharacteristics.SENSOR_ORIENTATION);
-                int deviceOrientation = (lastOrientation + 45) / 90 * 90;
-                pictureOrientation = (sensorOrientation + deviceOrientation + 360) % 360;
+                deviceOrientation = (lastOrientation + 45) / 90 * 90;
+            } else {
+                // 水平にした時はORIENTATION_UNKNOWNになるので、画面の向きで判断する
+                Configuration config = getResources().getConfiguration();
+                if (config.orientation == Configuration.ORIENTATION_PORTRAIT) {
+                    deviceOrientation = 0;
+                } else {
+                    deviceOrientation = 90;
+                }
             }
+            CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
+            CameraCharacteristics cc = manager.getCameraCharacteristics(this.cameraId);
+            int sensorOrientation = cc.get(CameraCharacteristics.SENSOR_ORIENTATION);
+            pictureOrientation = (sensorOrientation + deviceOrientation + 360) % 360;
+
             captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, pictureOrientation);
             CameraCaptureSession.CaptureCallback CaptureCallback = new CameraCaptureSession.CaptureCallback() {
                 @Override
