@@ -135,8 +135,12 @@ public class Camera1Preview extends ViewGroup implements SurfaceHolder.Callback 
      */
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        final int width = resolveSize(getSuggestedMinimumWidth(), widthMeasureSpec);
-        final int height = resolveSize(getSuggestedMinimumHeight(), heightMeasureSpec);
+        int width = resolveSize(getSuggestedMinimumWidth(), widthMeasureSpec);
+        int height = resolveSize(getSuggestedMinimumHeight(), heightMeasureSpec);
+        if (width == 0 || height == 0) {
+            width = MeasureSpec.getSize(widthMeasureSpec);
+            height = MeasureSpec.getSize(heightMeasureSpec);
+        }
         setMeasuredDimension(width, height);
 
         if (this.supportedPreviewSizes != null) {
