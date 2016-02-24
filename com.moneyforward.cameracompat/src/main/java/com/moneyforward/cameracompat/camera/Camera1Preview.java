@@ -193,7 +193,10 @@ public class Camera1Preview extends ViewGroup implements SurfaceHolder.Callback 
                     break;
             }
         }
-        cameraView.layout(0, 0, previewWidth, previewHeight);
+
+        final int scaledChildHeight = previewHeight * width / previewWidth;
+        int padding = (height - scaledChildHeight) / 2;
+        cameraView.layout(0, padding, width, height - padding);
     }
 
     /**

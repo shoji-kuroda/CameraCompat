@@ -753,11 +753,22 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                 deviceOrientation = (lastOrientation + 45) / 90 * 90;
             } else {
                 // 水平にした時はORIENTATION_UNKNOWNになるので、画面の向きで判断する
-                Configuration config = getResources().getConfiguration();
-                if (config.orientation == Configuration.ORIENTATION_PORTRAIT) {
-                    deviceOrientation = 0;
-                } else {
-                    deviceOrientation = 90;
+                int displayRotation = activity.getWindowManager().getDefaultDisplay().getRotation();
+                switch (displayRotation) {
+                    case Surface.ROTATION_0:
+                        deviceOrientation = 0;
+                        break;
+                    case Surface.ROTATION_90:
+                        deviceOrientation = 270;
+                        break;
+                    case Surface.ROTATION_180:
+                        deviceOrientation = 180;
+                        break;
+                    case Surface.ROTATION_270:
+                        deviceOrientation = 90;
+                        break;
+                    default:
+                        Log.e(TAG, "Display rotation is invalid: " + displayRotation);
                 }
             }
             CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
