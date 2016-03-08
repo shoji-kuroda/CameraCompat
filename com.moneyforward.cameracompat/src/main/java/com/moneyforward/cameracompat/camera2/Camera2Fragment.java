@@ -113,7 +113,6 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
     private CameraState cameraState = CameraState.STATE_PREVIEW;
     private Semaphore cameraOpenCloseLock = new Semaphore(1);
     private Handler uiHandler = new Handler();
-    private ViewGroup cameraFrame;
     private CameraCompatCallback cameraCompatCallback;
     private boolean allowRetry = false;
     private int imageSizeMax;
@@ -172,7 +171,6 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             cameraOpenCloseLock.release();
             cameraDevice.close();
             Camera2Fragment.this.cameraDevice = null;
-            // TODO: Activityに対してError通知
         }
 
     };
@@ -333,15 +331,9 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_camera, container, false);
-    }
-
-    @Override
-    public void onViewCreated(final View view, Bundle savedInstanceState) {
-        this.cameraPreview = new Camera2Preview(getContext());
-        this.cameraPreview.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        this.cameraFrame = (ViewGroup) view.findViewById(R.id.camera_frame);
-        this.cameraFrame.addView(cameraPreview);
+        View view = inflater.inflate(R.layout.fragment_camera_2, container, false);
+        this.cameraPreview = (Camera2Preview) view.findViewById(R.id.preview);
+        return view;
     }
 
     @Override
@@ -414,7 +406,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                 CameraCharacteristics characteristics
                         = manager.getCameraCharacteristics(cameraId);
 
-                // We don't use a front facing camera in this sample.
+                // フロントカメラは利用しない
                 Integer facing = characteristics.get(CameraCharacteristics.LENS_FACING);
                 if (facing != null && facing == CameraCharacteristics.LENS_FACING_FRONT) {
                     continue;
@@ -594,8 +586,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
 
             Surface surface = new Surface(texture);
 
-            previewRequestBuilder
-                    = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+            previewRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             previewRequestBuilder.addTarget(surface);
 
             cameraDevice.createCaptureSession(Arrays.asList(surface, imageReader.getSurface()),
