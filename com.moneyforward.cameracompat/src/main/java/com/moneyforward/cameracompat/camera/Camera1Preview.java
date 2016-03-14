@@ -58,7 +58,7 @@ public class Camera1Preview extends ViewGroup implements SurfaceHolder.Callback 
             this.supportedPreviewSizes = this.camera.getParameters().getSupportedPreviewSizes();
             this.supportedFlashModes = this.camera.getParameters().getSupportedFlashModes();
             // Set the camera to Auto Flash mode.
-            if (supportedFlashModes.contains(Camera.Parameters.FLASH_MODE_AUTO)) {
+            if (this.supportedFlashModes != null && supportedFlashModes.contains(Camera.Parameters.FLASH_MODE_AUTO)) {
                 Camera.Parameters parameters = this.camera.getParameters();
                 parameters.setFlashMode(Camera.Parameters.FLASH_MODE_AUTO);
                 this.camera.setParameters(parameters);
