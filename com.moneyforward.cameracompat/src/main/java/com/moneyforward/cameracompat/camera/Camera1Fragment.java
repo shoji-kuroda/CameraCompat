@@ -183,4 +183,29 @@ public class Camera1Fragment extends Fragment implements CameraCompatFragment, V
         cameraCompatCallback.takePicture(bitmap);
         isCameraActive = true;
     }
+
+    @Override
+    public void setFlash(boolean enable) {
+        Camera.Parameters params = this.camera.getParameters();
+
+        if (enable) {
+            if (supportsFlashModeTorch(params)) {
+                params.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
+            } else if (supportsFlashModeOn(params)) {
+                params.setFlashMode(Camera.Parameters.FLASH_MODE_ON);
+            }
+        } else {
+            params.setFlashMode(Camera.Parameters.FLASH_MODE_OFF);
+        }
+
+        this.camera.setParameters(params);
+    }
+
+    private boolean supportsFlashModeTorch(Camera.Parameters params) {
+        return params.getSupportedFlashModes().contains(Camera.Parameters.FLASH_MODE_TORCH);
+    }
+
+    private boolean supportsFlashModeOn(Camera.Parameters params) {
+        return params.getSupportedFlashModes().contains(Camera.Parameters.FLASH_MODE_ON);
+    }
 }

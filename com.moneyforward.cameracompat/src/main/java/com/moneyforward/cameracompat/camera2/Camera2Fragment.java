@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
+import android.graphics.Camera;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Point;
@@ -603,7 +604,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                                 previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
                                         CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
                                 previewRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
-                                        CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
+                                        CaptureRequest.CONTROL_AE_MODE_ON);
 
                                 previewRequest = previewRequestBuilder.build();
                                 captureSession.setRepeatingRequest(previewRequest,
@@ -859,5 +860,20 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                     (long) rhs.getWidth() * rhs.getHeight());
         }
 
+    }
+
+    @Override
+    public void setFlash(boolean enable) {
+        if (previewRequestBuilder == null || captureSession == null) {
+            return;
+        }
+
+        try {
+            previewRequestBuilder.set(CaptureRequest.FLASH_MODE,
+                    enable ? CameraMetadata.FLASH_MODE_TORCH : CameraMetadata.FLASH_MODE_OFF);
+            previewRequest = previewRequestBuilder.build();
+            captureSession.setRepeatingRequest(previewRequest, null, null);
+        } catch (CameraAccessException ignored) {
+        }
     }
 }
