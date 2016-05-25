@@ -9,6 +9,8 @@ import android.support.v4.app.Fragment;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.Toast;
 
 import com.moneyforward.cameracompat.CameraCompatCallback;
@@ -42,6 +44,12 @@ public class CameraActivity extends AppCompatActivity implements CameraCompatCal
             @Override
             public void onClick(View v) {
                 cameraFragment.takePicture(800, Bitmap.Config.ARGB_8888);
+            }
+        });
+        ((CheckBox) findViewById(R.id.flash)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                cameraFragment.setFlash(b);
             }
         });
     }
