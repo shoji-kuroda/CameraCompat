@@ -16,6 +16,8 @@ import com.moneyforward.cameracompat.CameraCompatFragment;
 import com.moneyforward.cameracompat.R;
 import com.moneyforward.cameracompat.util.ImageUtil;
 
+import java.util.List;
+
 /**
  * CameraFragment for below Marshmallow
  * <p/>
@@ -189,23 +191,19 @@ public class Camera1Fragment extends Fragment implements CameraCompatFragment, V
         Camera.Parameters params = this.camera.getParameters();
 
         if (enable) {
-            if (supportsFlashModeTorch(params)) {
+            if (isSpecifiedFlashModeSupported(params, Camera.Parameters.FLASH_MODE_TORCH)) {
                 params.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
-            } else if (supportsFlashModeOn(params)) {
+            } else if (isSpecifiedFlashModeSupported(params, Camera.Parameters.FLASH_MODE_ON)) {
                 params.setFlashMode(Camera.Parameters.FLASH_MODE_ON);
             }
         } else {
             params.setFlashMode(Camera.Parameters.FLASH_MODE_OFF);
         }
-
         this.camera.setParameters(params);
     }
 
-    private boolean supportsFlashModeTorch(Camera.Parameters params) {
-        return params.getSupportedFlashModes().contains(Camera.Parameters.FLASH_MODE_TORCH);
-    }
-
-    private boolean supportsFlashModeOn(Camera.Parameters params) {
-        return params.getSupportedFlashModes().contains(Camera.Parameters.FLASH_MODE_ON);
+    private boolean isSpecifiedFlashModeSupported(Camera.Parameters params, String flashMode) {
+        List<String> flashModes = params.getSupportedFlashModes();
+        return flashModes != null && flashModes.contains(flashMode);
     }
 }
