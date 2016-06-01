@@ -4,6 +4,8 @@ package com.moneyforward.cameracompat.camera;
 import android.graphics.Bitmap;
 import android.hardware.Camera;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.util.Log;
@@ -34,6 +36,16 @@ public class Camera1Fragment extends Fragment implements CameraCompatFragment, V
     private int imageSizeMax;
     private Bitmap.Config config;
     private boolean isCameraActive = true;
+
+    private Camera.AutoFocusCallback autoFocusCallback = new Camera.AutoFocusCallback() {
+        @Override
+        public void onAutoFocus(boolean success, Camera camera) {
+            notifyFocusStateChanged(
+                    success ? CameraCompatCallback.FocusState.FINISHED
+                            : CameraCompatCallback.FocusState.CANCELED);
+        }
+    };
+
 
     public static Camera1Fragment newInstance() {
         return new Camera1Fragment();
@@ -143,13 +155,15 @@ public class Camera1Fragment extends Fragment implements CameraCompatFragment, V
             if (this.camera == null) {
                 return;
             }
+
+            // 手動でのフォーカスがリクエストされたら、FOCUS_MODE_AUTOに変更する
+            Camera.Parameters params = this.camera.getParameters();
+            params.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+            this.camera.setParameters(params);
+
             this.camera.cancelAutoFocus();
-            this.camera.autoFocus(new Camera.AutoFocusCallback() {
-                @Override
-                public void onAutoFocus(boolean success, Camera camera) {
-                    Log.d(TAG, "onAutoFocus = " + success);
-                }
-            });
+            notifyFocusStateChanged(CameraCompatCallback.FocusState.STARTED);
+            this.camera.autoFocus(autoFocusCallback);
         }
     }
 
@@ -205,5 +219,14 @@ public class Camera1Fragment extends Fragment implements CameraCompatFragment, V
     private boolean isSpecifiedFlashModeSupported(Camera.Parameters params, String flashMode) {
         List<String> flashModes = params.getSupportedFlashModes();
         return flashModes != null && flashModes.contains(flashMode);
+    }
+
+    private void notifyFocusStateChanged(final CameraCompatCallback.FocusState newState) {
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                cameraCompatCallback.onFocusStateChanged(newState);
+            }
+        });
     }
 }

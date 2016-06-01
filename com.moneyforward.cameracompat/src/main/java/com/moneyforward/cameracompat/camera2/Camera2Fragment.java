@@ -30,6 +30,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.v13.app.FragmentCompat;
 import android.support.v4.app.Fragment;
@@ -204,9 +205,13 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                 case STATE_WAITING_LOCK: {
                     Integer afState = result.get(CaptureResult.CONTROL_AF_STATE);
                     if (afState == null) {
+                        notifyFocusStateChanged(CameraCompatCallback.FocusState.FINISHED);
                         captureStillPicture();
                     } else if (CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED == afState ||
                             CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED == afState) {
+
+                        notifyFocusStateChanged(CameraCompatCallback.FocusState.FINISHED);
+
                         // CONTROL_AE_STATE can be null on some devices
                         Integer aeState = result.get(CaptureResult.CONTROL_AE_STATE);
                         if (aeState == null ||
@@ -687,11 +692,12 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             previewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
                     CameraMetadata.CONTROL_AF_TRIGGER_START);
             // Tell #captureCallback to wait for the lock.
-            cameraState = cameraState.STATE_WAITING_LOCK;
+            cameraState = CameraState.STATE_WAITING_LOCK;
             if (captureSession != null) {
                 captureSession.capture(previewRequestBuilder.build(), captureCallback,
                         backgroundHandler);
             }
+            notifyFocusStateChanged(CameraCompatCallback.FocusState.STARTED);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -708,7 +714,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             previewRequestBuilder.set(CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER,
                     CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER_START);
             // Tell #captureCallback to wait for the precapture sequence to be set.
-            cameraState = cameraState.STATE_WAITING_PRECAPTURE;
+            cameraState = CameraState.STATE_WAITING_PRECAPTURE;
             captureSession.capture(previewRequestBuilder.build(), captureCallback,
                     backgroundHandler);
         } catch (CameraAccessException e) {
@@ -874,5 +880,14 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             captureSession.setRepeatingRequest(previewRequest, null, null);
         } catch (CameraAccessException ignored) {
         }
+    }
+
+    private void notifyFocusStateChanged(final CameraCompatCallback.FocusState newState) {
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                cameraCompatCallback.onFocusStateChanged(newState);
+            }
+        });
     }
 }
