@@ -603,7 +603,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                                 previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
                                         CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
                                 previewRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
-                                        CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
+                                        CaptureRequest.CONTROL_AE_MODE_ON);
 
                                 previewRequest = previewRequestBuilder.build();
                                 captureSession.setRepeatingRequest(previewRequest,
@@ -735,7 +735,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             captureBuilder.set(CaptureRequest.CONTROL_AF_MODE,
                     CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
             captureBuilder.set(CaptureRequest.CONTROL_AE_MODE,
-                    CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
+                    CaptureRequest.CONTROL_AE_MODE_ON);
 
             // 保存する画像の向きを計算
             int pictureOrientation = 0;
@@ -794,7 +794,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             previewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
                     CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
             previewRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
-                    CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
+                    CaptureRequest.CONTROL_AE_MODE_ON);
             captureSession.capture(previewRequestBuilder.build(), captureCallback,
                     backgroundHandler);
             // After this, the camera will go back to the normal state of preview.
@@ -859,5 +859,20 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                     (long) rhs.getWidth() * rhs.getHeight());
         }
 
+    }
+
+    @Override
+    public void setFlash(boolean enable) {
+        if (previewRequestBuilder == null || captureSession == null) {
+            return;
+        }
+
+        try {
+            previewRequestBuilder.set(CaptureRequest.FLASH_MODE,
+                    enable ? CameraMetadata.FLASH_MODE_TORCH : CameraMetadata.FLASH_MODE_OFF);
+            previewRequest = previewRequestBuilder.build();
+            captureSession.setRepeatingRequest(previewRequest, null, null);
+        } catch (CameraAccessException ignored) {
+        }
     }
 }
