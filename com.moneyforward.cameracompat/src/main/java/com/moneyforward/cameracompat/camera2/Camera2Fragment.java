@@ -30,7 +30,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.v13.app.FragmentCompat;
 import android.support.v4.app.Fragment;
@@ -205,12 +204,9 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                 case STATE_WAITING_LOCK: {
                     Integer afState = result.get(CaptureResult.CONTROL_AF_STATE);
                     if (afState == null) {
-                        notifyFocusStateChanged(CameraCompatCallback.FocusState.FINISHED);
                         captureStillPicture();
                     } else if (CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED == afState ||
                             CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED == afState) {
-
-                        notifyFocusStateChanged(CameraCompatCallback.FocusState.FINISHED);
 
                         // CONTROL_AE_STATE can be null on some devices
                         Integer aeState = result.get(CaptureResult.CONTROL_AE_STATE);
@@ -697,7 +693,6 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                 captureSession.capture(previewRequestBuilder.build(), captureCallback,
                         backgroundHandler);
             }
-            notifyFocusStateChanged(CameraCompatCallback.FocusState.STARTED);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -880,14 +875,5 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             captureSession.setRepeatingRequest(previewRequest, null, null);
         } catch (CameraAccessException ignored) {
         }
-    }
-
-    private void notifyFocusStateChanged(final CameraCompatCallback.FocusState newState) {
-        new Handler(Looper.getMainLooper()).post(new Runnable() {
-            @Override
-            public void run() {
-                cameraCompatCallback.onFocusStateChanged(newState);
-            }
-        });
     }
 }
