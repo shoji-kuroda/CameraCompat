@@ -207,6 +207,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                         captureStillPicture();
                     } else if (CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED == afState ||
                             CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED == afState) {
+
                         // CONTROL_AE_STATE can be null on some devices
                         Integer aeState = result.get(CaptureResult.CONTROL_AE_STATE);
                         if (aeState == null ||
@@ -687,7 +688,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             previewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
                     CameraMetadata.CONTROL_AF_TRIGGER_START);
             // Tell #captureCallback to wait for the lock.
-            cameraState = cameraState.STATE_WAITING_LOCK;
+            cameraState = CameraState.STATE_WAITING_LOCK;
             if (captureSession != null) {
                 captureSession.capture(previewRequestBuilder.build(), captureCallback,
                         backgroundHandler);
@@ -708,7 +709,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             previewRequestBuilder.set(CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER,
                     CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER_START);
             // Tell #captureCallback to wait for the precapture sequence to be set.
-            cameraState = cameraState.STATE_WAITING_PRECAPTURE;
+            cameraState = CameraState.STATE_WAITING_PRECAPTURE;
             captureSession.capture(previewRequestBuilder.build(), captureCallback,
                     backgroundHandler);
         } catch (CameraAccessException e) {
