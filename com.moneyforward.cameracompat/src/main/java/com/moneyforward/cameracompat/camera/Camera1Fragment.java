@@ -194,6 +194,9 @@ public class Camera1Fragment extends Fragment implements CameraCompatFragment, V
      */
     @Override
     public void onPictureTaken(byte[] bytes, Camera camera) {
+        if (allowRetry) {
+            camera.startPreview();
+        }
         int degrees = ImageUtil.getCameraDisplayOrientation(getActivity());
         final Bitmap bitmap = ImageUtil.createBitmap(bytes, imageSizeMax, degrees, config);
         cameraCompatCallback.takePicture(bitmap);
