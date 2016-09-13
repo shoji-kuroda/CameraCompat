@@ -150,20 +150,25 @@ public class Camera1Fragment extends Fragment implements CameraCompatFragment, V
      * @param v
      */
     @Override
-    public void onClick(View v) {
+    public synchronized void onClick(View v) {
         if (v.getId() == R.id.camera_frame) {
             if (this.camera == null) {
                 return;
             }
 
             // 手動でのフォーカスがリクエストされたら、FOCUS_MODE_AUTOに変更する
-            Camera.Parameters params = this.camera.getParameters();
-            params.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
-            this.camera.setParameters(params);
+            try {
+                Camera.Parameters params = this.camera.getParameters();
 
-            this.camera.cancelAutoFocus();
-            notifyFocusStateChanged(CameraCompatCallback.FocusState.STARTED);
-            this.camera.autoFocus(autoFocusCallback);
+                params.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+                this.camera.setParameters(params);
+
+                this.camera.cancelAutoFocus();
+                notifyFocusStateChanged(CameraCompatCallback.FocusState.STARTED);
+                this.camera.autoFocus(autoFocusCallback);
+            } catch (RuntimeException e) {
+                // nothing to do.
+            }
         }
     }
 
