@@ -204,6 +204,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                 case STATE_WAITING_LOCK: {
                     Integer afState = result.get(CaptureResult.CONTROL_AF_STATE);
                     if (afState == null) {
+                        cameraState = CameraState.STATE_PICTURE_TAKEN;
                         captureStillPicture();
                     } else if (CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED == afState ||
                             CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED == afState) {
@@ -690,6 +691,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             // Tell #captureCallback to wait for the lock.
             cameraState = CameraState.STATE_WAITING_LOCK;
             if (captureSession != null) {
+                captureSession.stopRepeating();
                 captureSession.capture(previewRequestBuilder.build(), captureCallback,
                         backgroundHandler);
             }
@@ -828,7 +830,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             this.image = image;
             this.imageSizeMax = imageSizeMax;
             this.config = config;
-            cameraCompatCallback = callback;
+            this.cameraCompatCallback = callback;
             this.uiHandler = uiHandler;
         }
 
@@ -842,9 +844,9 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                 @Override
                 public void run() {
                     cameraCompatCallback.takePicture(bitmap);
+                    image.close();
                 }
             });
-            image.close();
         }
     }
 
