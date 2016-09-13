@@ -698,7 +698,6 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             // Tell #captureCallback to wait for the lock.
             cameraState = CameraState.STATE_WAITING_LOCK;
             if (captureSession != null) {
-                captureSession.stopRepeating();
                 captureSession.capture(previewRequestBuilder.build(), captureCallback,
                         backgroundHandler);
             }
@@ -787,7 +786,6 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                 }
             };
 
-            captureSession.stopRepeating();
             captureSession.capture(captureBuilder.build(), CaptureCallback, null);
         } catch (CameraAccessException e) {
             e.printStackTrace();
