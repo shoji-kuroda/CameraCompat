@@ -69,7 +69,7 @@ public class ImageUtil {
      * @param imageSizeMax
      * @return
      */
-    public static Bitmap createBitmap(byte[] data, int imageSizeMax, int degrees, Bitmap.Config config) {
+    public static synchronized Bitmap createBitmap(byte[] data, int imageSizeMax, int degrees, Bitmap.Config config) {
         Bitmap original = decodeByteArrayToRotatedBitmap(data);
 
         int originalWidth = original.getWidth();
