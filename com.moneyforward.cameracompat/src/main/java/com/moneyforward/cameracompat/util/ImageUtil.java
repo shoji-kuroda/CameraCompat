@@ -105,7 +105,10 @@ public class ImageUtil {
         canvas.translate(offset, -offset);
         canvas.drawBitmap(scaledBitmap, 0, 0, null);
         canvas.restore();
-        scaledBitmap.recycle();
+        if (scaledBitmap != null && !scaledBitmap.isRecycled()) {
+            scaledBitmap.recycle();
+            scaledBitmap = null;
+        }
         System.gc();
         return rotatedBitmap;
     }
