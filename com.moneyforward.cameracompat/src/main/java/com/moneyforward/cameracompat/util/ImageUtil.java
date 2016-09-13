@@ -106,6 +106,7 @@ public class ImageUtil {
         canvas.drawBitmap(scaledBitmap, 0, 0, null);
         canvas.restore();
         scaledBitmap.recycle();
+        System.gc();
         return rotatedBitmap;
     }
 
