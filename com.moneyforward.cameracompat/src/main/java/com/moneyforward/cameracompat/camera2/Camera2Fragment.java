@@ -78,6 +78,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
 
     private OrientationEventListener orientationEventListener;
     private int lastOrientation = OrientationEventListener.ORIENTATION_UNKNOWN;
+    private boolean isLockFocus = false;
 
     private enum CameraState {
         STATE_PREVIEW(0),
@@ -171,12 +172,6 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             cameraOpenCloseLock.release();
             cameraDevice.close();
             Camera2Fragment.this.cameraDevice = null;
-        }
-
-        @Override
-        public void onClosed(CameraDevice camera) {
-            super.onClosed(camera);
-            stopBackgroundThread();
         }
     };
 
@@ -691,6 +686,10 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
      * Lock the focus as the first step for a still image capture.
      */
     private void lockFocus() {
+        if (this.isLockFocus) {
+            return;
+        }
+        this.isLockFocus = true;
         try {
             // This is how to tell the camera to lock focus.
             previewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
@@ -785,7 +784,6 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                     unlockFocus();
                 }
             };
-
             captureSession.capture(captureBuilder.build(), CaptureCallback, null);
         } catch (CameraAccessException e) {
             e.printStackTrace();
@@ -797,6 +795,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
      * finished.
      */
     private void unlockFocus() {
+        isLockFocus = false;
         try {
             // Reset the auto-focus trigger
             previewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
@@ -879,7 +878,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             previewRequestBuilder.set(CaptureRequest.FLASH_MODE,
                     enable ? CameraMetadata.FLASH_MODE_TORCH : CameraMetadata.FLASH_MODE_OFF);
             previewRequest = previewRequestBuilder.build();
-            captureSession.setRepeatingRequest(previewRequest, null, null);
+            captureSession.setRepeatingRequest(previewRequest, captureCallback, backgroundHandler);
         } catch (CameraAccessException ignored) {
         }
     }
