@@ -173,6 +173,11 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             Camera2Fragment.this.cameraDevice = null;
         }
 
+        @Override
+        public void onClosed(CameraDevice camera) {
+            super.onClosed(camera);
+            stopBackgroundThread();
+        }
     };
 
 
@@ -619,6 +624,8 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                         public void onConfigureFailed(
                                 @NonNull CameraCaptureSession cameraCaptureSession) {
                             showToast("Failed");
+                            cameraDevice.close();
+                            cameraDevice = null;
                         }
                     }, null
             );
