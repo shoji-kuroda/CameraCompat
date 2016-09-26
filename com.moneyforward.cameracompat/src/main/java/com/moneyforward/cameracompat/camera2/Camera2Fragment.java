@@ -802,12 +802,15 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                     CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
             previewRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
                     CaptureRequest.CONTROL_AE_MODE_ON);
-            captureSession.capture(previewRequestBuilder.build(), captureCallback,
-                    backgroundHandler);
+            if (captureSession != null) {
+                captureSession.capture(previewRequestBuilder.build(), captureCallback,
+                        backgroundHandler);
+                captureSession.setRepeatingRequest(previewRequest, captureCallback,
+                        backgroundHandler);
+            }
             // After this, the camera will go back to the normal state of preview.
             cameraState = CameraState.STATE_PREVIEW;
-            captureSession.setRepeatingRequest(previewRequest, captureCallback,
-                    backgroundHandler);
+
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
