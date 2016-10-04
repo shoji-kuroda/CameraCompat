@@ -260,6 +260,50 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
     };
 
 
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.fragment_camera_2, container, false);
+        this.cameraPreview = (Camera2Preview) view.findViewById(R.id.preview);
+        return view;
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        startBackgroundThread();
+
+        // When the screen is turned off and turned back on, the SurfaceTexture is already
+        // available, and "onSurfaceTextureAvailable" will not be called. In that case, we can open
+        // a camera and start preview from here (otherwise, we wait until the surface is ready in
+        // the SurfaceTextureListener).
+        if (cameraPreview.isAvailable()) {
+            openCamera(cameraPreview.getWidth(), cameraPreview.getHeight());
+        } else {
+            cameraPreview.setSurfaceTextureListener(surfaceTextureListener);
+        }
+        orientationEventListener = new OrientationEventListener(getActivity(), SensorManager.SENSOR_DELAY_NORMAL) {
+            @Override
+            public void onOrientationChanged(int orientation) {
+                lastOrientation = orientation;
+            }
+        };
+        if (orientationEventListener.canDetectOrientation()) {
+            orientationEventListener.enable();
+
+        } else {
+            orientationEventListener.disable();
+            orientationEventListener = null;
+        }
+    }
+
+    @Override
+    public void onPause() {
+        closeCamera();
+        stopBackgroundThread();
+        super.onPause();
+    }
+
     /**
      * Shows a {@link Toast} on the UI thread.
      *
@@ -328,50 +372,6 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
 
     public static Camera2Fragment newInstance() {
         return new Camera2Fragment();
-    }
-
-    @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_camera_2, container, false);
-        this.cameraPreview = (Camera2Preview) view.findViewById(R.id.preview);
-        return view;
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        startBackgroundThread();
-
-        // When the screen is turned off and turned back on, the SurfaceTexture is already
-        // available, and "onSurfaceTextureAvailable" will not be called. In that case, we can open
-        // a camera and start preview from here (otherwise, we wait until the surface is ready in
-        // the SurfaceTextureListener).
-        if (cameraPreview.isAvailable()) {
-            openCamera(cameraPreview.getWidth(), cameraPreview.getHeight());
-        } else {
-            cameraPreview.setSurfaceTextureListener(surfaceTextureListener);
-        }
-        orientationEventListener = new OrientationEventListener(getActivity(), SensorManager.SENSOR_DELAY_NORMAL) {
-            @Override
-            public void onOrientationChanged(int orientation) {
-                lastOrientation = orientation;
-            }
-        };
-        if (orientationEventListener.canDetectOrientation()) {
-            orientationEventListener.enable();
-
-        } else {
-            orientationEventListener.disable();
-            orientationEventListener = null;
-        }
-    }
-
-    @Override
-    public void onPause() {
-        closeCamera();
-        stopBackgroundThread();
-        super.onPause();
     }
 
     private void requestCameraPermission() {
@@ -512,9 +512,12 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                 return;
             }
         }
+        Activity activity = getActivity();
+        if (cameraId == null) {
+            return;
+        }
         setUpCameraOutputs(width, height);
         configureTransform(width, height);
-        Activity activity = getActivity();
         CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
         try {
             if (!cameraOpenCloseLock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
