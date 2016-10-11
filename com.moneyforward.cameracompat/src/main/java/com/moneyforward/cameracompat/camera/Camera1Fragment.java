@@ -47,16 +47,17 @@ public class Camera1Fragment extends Fragment implements CameraCompatFragment, V
     };
 
 
-    public static Camera1Fragment newInstance() {
-        return new Camera1Fragment();
-    }
-
-    public Camera1Fragment() {
-    }
-
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+    }
+
+    @Nullable
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        View rootView = inflater.inflate(R.layout.fragment_camera, container, false);
+        this.cameraFrame = (ViewGroup) rootView.findViewById(R.id.camera_frame);
+        return rootView;
     }
 
     @Override
@@ -80,12 +81,11 @@ public class Camera1Fragment extends Fragment implements CameraCompatFragment, V
         }
     }
 
-    @Nullable
-    @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        View rootView = inflater.inflate(R.layout.fragment_camera, container, false);
-        this.cameraFrame = (ViewGroup) rootView.findViewById(R.id.camera_frame);
-        return rootView;
+    public static Camera1Fragment newInstance() {
+        return new Camera1Fragment();
+    }
+
+    public Camera1Fragment() {
     }
 
     /**
@@ -210,8 +210,10 @@ public class Camera1Fragment extends Fragment implements CameraCompatFragment, V
 
     @Override
     public void setFlash(boolean enable) {
+        if (camera == null) {
+            return;
+        }
         Camera.Parameters params = this.camera.getParameters();
-
         if (enable) {
             if (isSpecifiedFlashModeSupported(params, Camera.Parameters.FLASH_MODE_TORCH)) {
                 params.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
