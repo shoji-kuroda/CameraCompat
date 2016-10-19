@@ -64,7 +64,7 @@ public class Camera1Fragment extends Fragment implements CameraCompatFragment, V
     public void onResume() {
         super.onResume();
         if (safeCameraOpen()) {
-            this.cameraPreview = new Camera1Preview(getContext(), this.camera);
+            this.cameraPreview = new Camera1Preview(getActivity(), this.camera);
             if (this.cameraFrame.getChildCount() > 0 && this.cameraFrame.getChildAt(0) instanceof Camera1Preview) {
                 this.cameraFrame.removeViewAt(0);
             }

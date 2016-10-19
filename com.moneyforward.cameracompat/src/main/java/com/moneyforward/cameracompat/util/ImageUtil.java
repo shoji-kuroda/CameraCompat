@@ -3,7 +3,6 @@ package com.moneyforward.cameracompat.util;
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.support.annotation.Nullable;
 import android.util.Pair;
@@ -70,47 +69,49 @@ public class ImageUtil {
      * @return
      */
     public static synchronized Bitmap createBitmap(byte[] data, int imageSizeMax, int degrees, Bitmap.Config config) {
-        Bitmap original = decodeByteArrayToRotatedBitmap(data);
 
-        int originalWidth = original.getWidth();
-        int originalHeight = original.getHeight();
+        System.gc();
+
+        // 回転確度
+        degrees = degrees + extractTransformMatrixFromExifInfo(data);
+
+        // 画像のサイズ取得
+        BitmapFactory.Options bitmapSizeOptions = new BitmapFactory.Options();
+        bitmapSizeOptions.inJustDecodeBounds = true;
+        BitmapFactory.decodeByteArray(data, 0, data.length, bitmapSizeOptions);
+
+        BitmapFactory.Options bitmapDecodeOptions = new BitmapFactory.Options();
+        bitmapDecodeOptions.inSampleSize = computeInSampleSize(bitmapSizeOptions, imageSizeMax);
+
+        Bitmap decodeBitmap = BitmapFactory.decodeByteArray(data, 0, data.length, bitmapDecodeOptions);
+        data = null;
+
+        // 縮小
+        int decodeWidth = decodeBitmap.getWidth();
+        int decodeHeight = decodeBitmap.getHeight();
 
         int scaleHeight;
         int scaleWidth;
-        if (originalHeight > originalWidth) {
+        if (decodeHeight > decodeWidth) {
             scaleHeight = imageSizeMax;
             scaleWidth = (int) Math.floor(imageSizeMax *
-                    ((float) originalWidth / originalHeight));
+                    ((float) decodeWidth / decodeHeight));
         } else {
             scaleHeight = (int) Math.floor(imageSizeMax *
-                    ((float) originalHeight / originalWidth));
+                    ((float) decodeHeight / decodeWidth));
             scaleWidth = imageSizeMax;
         }
-        Bitmap scaledBitmap = Bitmap.createScaledBitmap(original, scaleWidth, scaleHeight, true);
-        original.recycle();
+        float ratioHeight = (float) scaleHeight / decodeHeight;
+        float ratioWidth = (float) scaleWidth / decodeWidth;
 
-        int rotatedWidth, rotatedHeight;
-        if (degrees % 180 == 0) {
-            rotatedWidth = (int) Math.floor(scaleWidth);
-            rotatedHeight = (int) Math.floor(scaleHeight);
-        } else {
-            rotatedWidth = (int) Math.floor(scaleHeight);
-            rotatedHeight = (int) Math.floor(scaleWidth);
-        }
-        Bitmap rotatedBitmap = Bitmap.createBitmap(rotatedWidth, rotatedHeight, config);
-        Canvas canvas = new Canvas(rotatedBitmap);
-        canvas.save();
-        canvas.rotate(degrees, rotatedWidth / 2, rotatedHeight / 2);
-        int offset = (rotatedHeight - rotatedWidth) / 2 * ((degrees - 180) % 180) / 90;
-        canvas.translate(offset, -offset);
-        canvas.drawBitmap(scaledBitmap, 0, 0, null);
-        canvas.restore();
-        if (scaledBitmap != null && !scaledBitmap.isRecycled()) {
-            scaledBitmap.recycle();
-            scaledBitmap = null;
-        }
+        Matrix matrix = new Matrix();
+        matrix.setScale(ratioWidth, ratioHeight);
+        matrix.postRotate(degrees);
+        Bitmap adjustBitmap = Bitmap.createBitmap(decodeBitmap, 0, 0, decodeWidth, decodeHeight, matrix, false);
+        decodeBitmap.recycle();
         System.gc();
-        return rotatedBitmap;
+
+        return adjustBitmap;
     }
 
     /**
@@ -139,19 +140,21 @@ public class ImageUtil {
         return (90 + 360 - degrees) % 360;
     }
 
-    /**
-     * ByteArrayからExif情報によってOrientationの補正が掛けられたBitmapを作成する
-     *
-     * @param data
-     * @return 補正後のBitmap
-     */
-    private static Bitmap decodeByteArrayToRotatedBitmap(byte[] data) {
-        final Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
+    private static int computeInSampleSize(BitmapFactory.Options options, int maxSize) {
+        int inSampleSize = 1;
 
-        Matrix matrix = extractTransformMatrixFromExifInfo(data);
+        final int srcHeight = options.outHeight;
+        final int srcWidth = options.outWidth;
 
-        return matrix == null ? bitmap
-                : Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, false);
+        int tmpWidth = srcWidth, tmpHeight = srcHeight;
+        while (true) {
+            if (tmpWidth / 2 < maxSize || tmpHeight / 2 < maxSize)
+                break;
+            tmpWidth /= 2;
+            tmpHeight /= 2;
+            inSampleSize *= 2;
+        }
+        return inSampleSize;
     }
 
     /**
@@ -161,7 +164,7 @@ public class ImageUtil {
      * @return Exifから取得できれば回転情報を含むMatrix。取得できなければNull
      */
     @Nullable
-    private static Matrix extractTransformMatrixFromExifInfo(byte[] data) {
+    private static int extractTransformMatrixFromExifInfo(byte[] data) {
         final InputStream stream = new ByteArrayInputStream(data);
 
         Integer exifOrientationValue;
@@ -171,25 +174,16 @@ public class ImageUtil {
 
             exifOrientationValue = exif.getInteger(ExifDirectoryBase.TAG_ORIENTATION);
             if (exifOrientationValue == null) {
-                return null;
+                return 0;
             }
         } catch (Exception e) {
-            return null;
+            return 0;
         } finally {
             try {
                 stream.close();
             } catch (IOException ignored) {
             }
         }
-
-        final Matrix matrix = new Matrix();
-
-        final Pair<Integer, Integer> preScale
-                = EXIF_ORIENTATION_VALUE_PRE_SCALE_MAP.get(exifOrientationValue, PRE_SCALE_MIRROR_NONE);
-        // Scale -> Rotate の順番でなくてはならない
-        matrix.preScale(preScale.first, preScale.second);
-        matrix.setRotate(EXIF_ORIENTATION_VALUE_ANGLE_MAP.get(exifOrientationValue, 0));
-
-        return matrix;
+        return EXIF_ORIENTATION_VALUE_ANGLE_MAP.get(exifOrientationValue, 0);
     }
 }

@@ -1,7 +1,9 @@
 package com.moneyforward.cameracompat.camera;
 
+import android.app.Activity;
 import android.content.Context;
 import android.hardware.Camera;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Display;
 import android.view.Surface;
@@ -22,20 +24,20 @@ import java.util.List;
 public class Camera1Preview extends ViewGroup implements SurfaceHolder.Callback {
 
     private final String TAG = Camera1Preview.class.getSimpleName();
-
+    private final Activity activity;
     private Camera.Size previewSize;
     private List<Camera.Size> supportedPreviewSizes;
-    private Context context;
     private SurfaceView surfaceView;
     private SurfaceHolder holder;
     private List<String> supportedFlashModes;
     private Camera camera;
+    private Camera.Size pictureSize;
 
-    public Camera1Preview(Context context, Camera camera) {
-        super(context);
-        this.context = context;
+    public Camera1Preview(Activity activity, Camera camera) {
+        super(activity);
+        this.activity = activity;
         setCamera(camera);
-        this.surfaceView = new SurfaceView(context);
+        this.surfaceView = new SurfaceView(activity);
         addView(surfaceView, 0);
         this.holder = this.surfaceView.getHolder();
         this.holder.addCallback(this);
@@ -101,15 +103,33 @@ public class Camera1Preview extends ViewGroup implements SurfaceHolder.Callback 
         }
 
         try {
-            Camera.Parameters parameters = this.camera.getParameters();
-            parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
+            Camera.Parameters params = this.camera.getParameters();
+            params.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
             if (this.previewSize != null) {
-                Camera.Size previewSize = this.previewSize;
-                parameters.setPreviewSize(previewSize.width, previewSize.height);
+                params.setPreviewSize(this.previewSize.width, this.previewSize.height);
+                List<Camera.Size> supportedPictureSizes
+                        = camera.getParameters().getSupportedPictureSizes();
+                List<Camera.Size> supportedPreviewSizes
+                        = camera.getParameters().getSupportedPreviewSizes();
+                if (supportedPictureSizes != null &&
+                        supportedPreviewSizes != null &&
+                        supportedPictureSizes.size() > 0 &&
+                        supportedPreviewSizes.size() > 0) {
+
+                    WindowManager windowManager = activity.getWindowManager();
+                    Display display = windowManager.getDefaultDisplay();
+                    DisplayMetrics displayMetrics = new DisplayMetrics();
+                    display.getMetrics(displayMetrics);
+
+                    //撮影サイズを設定する
+                    this.pictureSize = supportedPictureSizes.get(0);
+                    params.setPictureSize(pictureSize.width, pictureSize.height);
+                    params.setPreviewSize(previewSize.width, previewSize.height);
+                }
+                this.camera.setParameters(params);
+                this.camera.setPreviewDisplay(holder);
+                this.camera.startPreview();
             }
-            this.camera.setParameters(parameters);
-            this.camera.setPreviewDisplay(this.holder);
-            this.camera.startPreview();
         } catch (Exception e) {
             Log.d(TAG, "Error starting camera preview: " + e.getMessage());
         }
@@ -170,7 +190,7 @@ public class Camera1Preview extends ViewGroup implements SurfaceHolder.Callback 
         int previewWidth = width;
         int previewHeight = height;
         if (this.previewSize != null) {
-            Display display = ((WindowManager) this.context.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
+            Display display = ((WindowManager) this.activity.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
 
             switch (display.getRotation()) {
                 case Surface.ROTATION_0:
@@ -194,9 +214,18 @@ public class Camera1Preview extends ViewGroup implements SurfaceHolder.Callback 
             }
         }
 
-        final int scaledChildHeight = previewHeight * width / previewWidth;
-        int padding = (height - scaledChildHeight) / 2;
-        cameraView.layout(0, padding, width, height - padding);
+        if (width * previewHeight > height * previewWidth) {
+            final int scaledChildWidth = previewWidth * height / previewHeight;
+            cameraView.layout((width - scaledChildWidth) / 2, 0,
+                    (width + scaledChildWidth) / 2, height);
+        } else {
+            final int scaledChildHeight = previewHeight * width / previewWidth;
+            cameraView.layout(0, (height - scaledChildHeight) / 2,
+                    width, (height + scaledChildHeight) / 2);
+        }
+//        final int scaledChildHeight = previewHeight * width / previewWidth;
+//        int padding = (height - scaledChildHeight) / 2;
+//        cameraView.layout(0, padding, width, height - padding);
     }
 
     /**
