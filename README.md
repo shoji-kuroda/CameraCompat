@@ -3,14 +3,14 @@
 ## Usage
 
 ### SetUp
-```
+```xml
 <FrameLayout
     android:id="@+id/container"
     android:layout_width="match_parent"
     android:layout_height="match_parent" />
 ```
 
-```
+```java
 CameraCompatFragment cameraFragment = CameraCompatFragmentFactory.getInstance();
 getSupportFragmentManager().beginTransaction()
         .replace(R.id.container, (Fragment) cameraFragment)
@@ -18,7 +18,8 @@ getSupportFragmentManager().beginTransaction()
 ```
 
 ### Take Picture
-```
+
+```java
 cameraFragment.setCallbackListener(new CameraCompatCallback() {
     @Override
     public void takePicture(Bitmap bitmap) {
