@@ -223,9 +223,6 @@ public class Camera1Preview extends ViewGroup implements SurfaceHolder.Callback 
             cameraView.layout(0, (height - scaledChildHeight) / 2,
                     width, (height + scaledChildHeight) / 2);
         }
-//        final int scaledChildHeight = previewHeight * width / previewWidth;
-//        int padding = (height - scaledChildHeight) / 2;
-//        cameraView.layout(0, padding, width, height - padding);
     }
 
     /**
@@ -239,7 +236,8 @@ public class Camera1Preview extends ViewGroup implements SurfaceHolder.Callback 
     private Camera.Size getOptimalPreviewSize(List<Camera.Size> sizes, int width, int height) {
 
         final double ASPECT_TOLERANCE = 0.1;
-        double targetRatio = (double) height / width;
+        // アスペクト比を3:4で固定
+        double targetRatio = (double) 4 / 3;
 
         if (sizes == null) return null;
 
