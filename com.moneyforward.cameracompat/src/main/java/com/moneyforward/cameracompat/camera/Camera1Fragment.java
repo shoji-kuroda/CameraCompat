@@ -63,14 +63,15 @@ public class Camera1Fragment extends Fragment implements CameraCompatFragment, V
     @Override
     public void onResume() {
         super.onResume();
-        if (safeCameraOpen()) {
-            this.cameraPreview = new Camera1Preview(getActivity(), this.camera);
-            if (this.cameraFrame.getChildCount() > 0 && this.cameraFrame.getChildAt(0) instanceof Camera1Preview) {
-                this.cameraFrame.removeViewAt(0);
-            }
-            this.cameraFrame.addView(this.cameraPreview);
-            this.cameraFrame.setOnClickListener(this);
+        if (!safeCameraOpen()) {
+            return;
         }
+        this.cameraPreview = new Camera1Preview(getActivity(), this.camera);
+        if (this.cameraFrame.getChildCount() > 0 && this.cameraFrame.getChildAt(0) instanceof Camera1Preview) {
+            this.cameraFrame.removeViewAt(0);
+        }
+        this.cameraFrame.addView(this.cameraPreview);
+        this.cameraFrame.setOnClickListener(this);
     }
 
     @Override
@@ -113,13 +114,14 @@ public class Camera1Fragment extends Fragment implements CameraCompatFragment, V
      * カメラプレビューを開放
      */
     private void releaseCameraAndPreview() {
-        if (this.camera != null) {
-            this.camera.setPreviewCallback(null);
-            this.cameraPreview.getHolder().removeCallback(this.cameraPreview);
-            this.camera.stopPreview();
-            this.camera.release();
-            this.camera = null;
+        if (this.camera == null) {
+            return;
         }
+        this.camera.setPreviewCallback(null);
+        this.cameraPreview.getHolder().removeCallback(this.cameraPreview);
+        this.camera.stopPreview();
+        this.camera.release();
+        this.camera = null;
     }
 
     /**
@@ -208,6 +210,11 @@ public class Camera1Fragment extends Fragment implements CameraCompatFragment, V
         isCameraActive = true;
     }
 
+    /**
+     * Flash ON/OFF
+     *
+     * @param enable
+     */
     @Override
     public void setFlash(boolean enable) {
         if (camera == null) {
@@ -226,6 +233,13 @@ public class Camera1Fragment extends Fragment implements CameraCompatFragment, V
         this.camera.setParameters(params);
     }
 
+    /**
+     * Check flashMode supported
+     *
+     * @param params
+     * @param flashMode
+     * @return
+     */
     private boolean isSpecifiedFlashModeSupported(Camera.Parameters params, String flashMode) {
         List<String> flashModes = params.getSupportedFlashModes();
         return flashModes != null && flashModes.contains(flashMode);
