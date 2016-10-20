@@ -2,6 +2,14 @@
 
 ## Usage
 
+1. copy `com.moneyforward.cameracompat/build/outputs/aar/com.moneyforward.cameracompat-vX.X.X.aar`
+1. paste to libs directory in your app
+
+```gradle
+compile(name: 'com.moneyforward.cameracompat-vX.X.X', ext: 'aar')
+```
+
+
 ### SetUp
 ```xml
 <FrameLayout
