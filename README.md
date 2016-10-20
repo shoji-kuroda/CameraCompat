@@ -45,3 +45,11 @@ cameraFragment.setCallbackListener(new CameraCompatCallback() {
 int maxSize = 800;
 cameraFragment.takePicture(maxSize, Bitmap.Config.ARGB_8888);
 ```
+
+## Turn on Flashlight
+
+```java
+cameraFragment.setFlash(true); // ON
+
+cameraFragment.setFlash(false); // OFF
+```
