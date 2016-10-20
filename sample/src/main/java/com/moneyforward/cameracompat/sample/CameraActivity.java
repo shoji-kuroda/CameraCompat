@@ -9,6 +9,9 @@ import android.support.v4.app.Fragment;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
+import android.view.animation.AnticipateInterpolator;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.Toast;
 
 import com.moneyforward.cameracompat.CameraCompatCallback;
@@ -28,6 +31,8 @@ public class CameraActivity extends AppCompatActivity implements CameraCompatCal
     private static final int REQUEST_CAMERA_PERMISSION = 1;
     private CameraCompatFragment cameraFragment;
 
+    private View focusArea;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -44,6 +49,13 @@ public class CameraActivity extends AppCompatActivity implements CameraCompatCal
                 cameraFragment.takePicture(800, Bitmap.Config.ARGB_8888);
             }
         });
+        ((CheckBox) findViewById(R.id.flash)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                cameraFragment.setFlash(b);
+            }
+        });
+        focusArea = findViewById(R.id.focus_area);
     }
 
     @Override
@@ -110,4 +122,25 @@ public class CameraActivity extends AppCompatActivity implements CameraCompatCal
                 .show();
     }
 
+    @Override
+    public void onFocusStateChanged(FocusState state) {
+        switch (state) {
+            case STARTED:
+                focusArea.setVisibility(View.VISIBLE);
+                focusArea.animate()
+                        .scaleX(0.75f)
+                        .scaleY(0.75f)
+                        .setDuration(200L)
+                        .setInterpolator(new AnticipateInterpolator())
+                        .start();
+                break;
+            case CANCELED:
+                focusArea.animate().cancel();
+            case FINISHED: // FALL_THROUGH
+                focusArea.setVisibility(View.GONE);
+                focusArea.setScaleX(1.0f);
+                focusArea.setScaleY(1.0f);
+                break;
+        }
+    }
 }

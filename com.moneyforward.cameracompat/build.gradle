@@ -1,5 +1,7 @@
 apply plugin: 'com.android.library'
 
+def PACKAGE_NAME = "com.moneyforward.cameracompat"
+
 android {
     compileSdkVersion 23
     buildToolsVersion "23.0.2"
@@ -7,20 +9,33 @@ android {
     defaultConfig {
         minSdkVersion 14
         targetSdkVersion 23
-        versionCode 1
-        versionName "1.0"
+        versionCode 3
+        versionName "1.0.3"
     }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+
+    android.libraryVariants.all { variant ->
+        variant.outputs.each { output ->
+            if (output.outputFile != null && output.outputFile.name.endsWith('.aar')) {
+                def versionName = defaultConfig.versionName
+                def fileName = PACKAGE_NAME + "-v${versionName}.aar"
+                output.outputFile = new File(output.outputFile.parent, fileName)
+            }
+        }
+    }
 }
+
 
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     testCompile 'junit:junit:4.12'
+    compile "com.drewnoakes:metadata-extractor:2.9.1"
     compile "com.android.support:support-v4:23.1.1"
     compile 'com.android.support:appcompat-v7:23.1.1'
     compile "com.android.support:support-v13:23.1.1"

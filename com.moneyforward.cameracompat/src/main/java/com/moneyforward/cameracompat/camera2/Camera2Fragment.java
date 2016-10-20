@@ -47,6 +47,7 @@ import android.widget.Toast;
 import com.moneyforward.cameracompat.CameraCompatCallback;
 import com.moneyforward.cameracompat.CameraCompatFragment;
 import com.moneyforward.cameracompat.R;
+import com.moneyforward.cameracompat.util.FeatureUtil;
 import com.moneyforward.cameracompat.util.ImageUtil;
 
 import java.io.File;
@@ -68,6 +69,32 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
     private static final String TAG = Camera2Fragment.class.getSimpleName();
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
     private static final int REQUEST_CAMERA_PERMISSION = 1;
+    private static final int MAX_PREVIEW_WIDTH = 1920;
+    private static final int MAX_PREVIEW_HEIGHT = 1080;
+
+    private OrientationEventListener orientationEventListener;
+    private int lastOrientation = OrientationEventListener.ORIENTATION_UNKNOWN;
+    private boolean isLockFocus = false;
+    private String cameraId;
+    private Camera2Preview cameraPreview;
+    private CameraCaptureSession captureSession;
+    private CameraDevice cameraDevice;
+    private Size previewSize;
+    private HandlerThread backgroundThread;
+    private Handler backgroundHandler;
+    private ImageReader imageReader;
+    private CaptureRequest.Builder previewRequestBuilder;
+    private CaptureRequest previewRequest;
+    private CameraState cameraState = CameraState.STATE_PREVIEW;
+    private Semaphore cameraOpenCloseLock = new Semaphore(1);
+    private Handler uiHandler = new Handler();
+    private CameraCompatCallback cameraCompatCallback;
+    private boolean allowRetry = false;
+    private int imageSizeMax;
+    private Bitmap.Config imageConfig;
+    private boolean isCameraActive = true;
+    private boolean isFlashEnable = false;
+
 
     static {
         ORIENTATIONS.append(Surface.ROTATION_0, 90);
@@ -76,8 +103,6 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
         ORIENTATIONS.append(Surface.ROTATION_270, 180);
     }
 
-    private OrientationEventListener orientationEventListener;
-    private int lastOrientation = OrientationEventListener.ORIENTATION_UNKNOWN;
 
     private enum CameraState {
         STATE_PREVIEW(0),
@@ -96,30 +121,6 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             return this.state;
         }
     }
-
-    private static final int MAX_PREVIEW_WIDTH = 1920;
-    private static final int MAX_PREVIEW_HEIGHT = 1080;
-
-    private String cameraId;
-    private Camera2Preview cameraPreview;
-    private CameraCaptureSession captureSession;
-    private CameraDevice cameraDevice;
-    private Size previewSize;
-    private HandlerThread backgroundThread;
-    private Handler backgroundHandler;
-    private ImageReader imageReader;
-    private CaptureRequest.Builder previewRequestBuilder;
-    private CaptureRequest previewRequest;
-    private CameraState cameraState = CameraState.STATE_PREVIEW;
-    private Semaphore cameraOpenCloseLock = new Semaphore(1);
-    private Handler uiHandler = new Handler();
-    private ViewGroup cameraFrame;
-    private CameraCompatCallback cameraCompatCallback;
-    private boolean allowRetry = false;
-    private int imageSizeMax;
-    private Bitmap.Config imageConfig;
-    private boolean isCameraActive = true;
-
 
     /**
      * {@link TextureView.SurfaceTextureListener} handles several lifecycle events on a
@@ -172,9 +173,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             cameraOpenCloseLock.release();
             cameraDevice.close();
             Camera2Fragment.this.cameraDevice = null;
-            // TODO: Activityに対してError通知
         }
-
     };
 
 
@@ -206,9 +205,11 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                 case STATE_WAITING_LOCK: {
                     Integer afState = result.get(CaptureResult.CONTROL_AF_STATE);
                     if (afState == null) {
+                        cameraState = CameraState.STATE_PICTURE_TAKEN;
                         captureStillPicture();
                     } else if (CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED == afState ||
                             CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED == afState) {
+
                         // CONTROL_AE_STATE can be null on some devices
                         Integer aeState = result.get(CaptureResult.CONTROL_AE_STATE);
                         if (aeState == null ||
@@ -259,6 +260,54 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
 
     };
 
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.fragment_camera_2, container, false);
+        this.cameraPreview = (Camera2Preview) view.findViewById(R.id.preview);
+        return view;
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        startBackgroundThread();
+
+        // When the screen is turned off and turned back on, the SurfaceTexture is already
+        // available, and "onSurfaceTextureAvailable" will not be called. In that case, we can open
+        // a camera and start preview from here (otherwise, we wait until the surface is ready in
+        // the SurfaceTextureListener).
+        if (cameraPreview.isAvailable()) {
+            openCamera(cameraPreview.getWidth(), cameraPreview.getHeight());
+        } else {
+            cameraPreview.setSurfaceTextureListener(surfaceTextureListener);
+        }
+        orientationEventListener = new OrientationEventListener(getActivity(), SensorManager.SENSOR_DELAY_NORMAL) {
+            @Override
+            public void onOrientationChanged(int orientation) {
+                lastOrientation = orientation;
+            }
+        };
+        if (orientationEventListener.canDetectOrientation()) {
+            orientationEventListener.enable();
+
+        } else {
+            orientationEventListener.disable();
+            orientationEventListener = null;
+        }
+    }
+
+    @Override
+    public void onPause() {
+        closeCamera();
+        stopBackgroundThread();
+        super.onPause();
+    }
+
+    public static Camera2Fragment newInstance() {
+        Camera2Fragment fragment = new Camera2Fragment();
+        fragment.setRetainInstance(true);
+        return fragment;
+    }
 
     /**
      * Shows a {@link Toast} on the UI thread.
@@ -326,60 +375,6 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
         }
     }
 
-    public static Camera2Fragment newInstance() {
-        return new Camera2Fragment();
-    }
-
-    @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_camera, container, false);
-    }
-
-    @Override
-    public void onViewCreated(final View view, Bundle savedInstanceState) {
-        this.cameraPreview = new Camera2Preview(getContext());
-        this.cameraPreview.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        this.cameraFrame = (ViewGroup) view.findViewById(R.id.camera_frame);
-        this.cameraFrame.addView(cameraPreview);
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        startBackgroundThread();
-
-        // When the screen is turned off and turned back on, the SurfaceTexture is already
-        // available, and "onSurfaceTextureAvailable" will not be called. In that case, we can open
-        // a camera and start preview from here (otherwise, we wait until the surface is ready in
-        // the SurfaceTextureListener).
-        if (cameraPreview.isAvailable()) {
-            openCamera(cameraPreview.getWidth(), cameraPreview.getHeight());
-        } else {
-            cameraPreview.setSurfaceTextureListener(surfaceTextureListener);
-        }
-        orientationEventListener = new OrientationEventListener(getActivity(), SensorManager.SENSOR_DELAY_NORMAL) {
-            @Override
-            public void onOrientationChanged(int orientation) {
-                lastOrientation = orientation;
-            }
-        };
-        if (orientationEventListener.canDetectOrientation()) {
-            orientationEventListener.enable();
-
-        } else {
-            orientationEventListener.disable();
-            orientationEventListener = null;
-        }
-    }
-
-    @Override
-    public void onPause() {
-        closeCamera();
-        stopBackgroundThread();
-        super.onPause();
-    }
-
     private void requestCameraPermission() {
         if (shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)) {
             cameraCompatCallback.requestCameraPermission();
@@ -414,7 +409,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                 CameraCharacteristics characteristics
                         = manager.getCameraCharacteristics(cameraId);
 
-                // We don't use a front facing camera in this sample.
+                // フロントカメラは利用しない
                 Integer facing = characteristics.get(CameraCharacteristics.LENS_FACING);
                 if (facing != null && facing == CameraCharacteristics.LENS_FACING_FRONT) {
                     continue;
@@ -518,9 +513,9 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                 return;
             }
         }
+        Activity activity = getActivity();
         setUpCameraOutputs(width, height);
         configureTransform(width, height);
-        Activity activity = getActivity();
         CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
         try {
             if (!cameraOpenCloseLock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
@@ -594,8 +589,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
 
             Surface surface = new Surface(texture);
 
-            previewRequestBuilder
-                    = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+            previewRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             previewRequestBuilder.addTarget(surface);
 
             cameraDevice.createCaptureSession(Arrays.asList(surface, imageReader.getSurface()),
@@ -609,11 +603,17 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
 
                             captureSession = cameraCaptureSession;
                             try {
-                                previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
-                                        CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+                                previewRequestBuilder.set(CaptureRequest.FLASH_MODE,
+                                        isFlashEnable ? CameraMetadata.FLASH_MODE_TORCH : CameraMetadata.FLASH_MODE_OFF);
+                                if (FeatureUtil.hasFeatureAutoFocus(getContext())) {
+                                    previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
+                                            CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+                                } else {
+                                    previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
+                                            CaptureRequest.CONTROL_AF_MODE_OFF);
+                                }
                                 previewRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
-                                        CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
-
+                                        CaptureRequest.CONTROL_AE_MODE_ON);
                                 previewRequest = previewRequestBuilder.build();
                                 captureSession.setRepeatingRequest(previewRequest,
                                         captureCallback, backgroundHandler);
@@ -626,6 +626,8 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                         public void onConfigureFailed(
                                 @NonNull CameraCaptureSession cameraCaptureSession) {
                             showToast("Failed");
+                            cameraDevice.close();
+                            cameraDevice = null;
                         }
                     }, null
             );
@@ -690,13 +692,17 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
     /**
      * Lock the focus as the first step for a still image capture.
      */
-    private void lockFocus() {
+    private synchronized void lockFocus() {
+        if (this.isLockFocus) {
+            return;
+        }
+        this.isLockFocus = true;
         try {
             // This is how to tell the camera to lock focus.
             previewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
                     CameraMetadata.CONTROL_AF_TRIGGER_START);
             // Tell #captureCallback to wait for the lock.
-            cameraState = cameraState.STATE_WAITING_LOCK;
+            cameraState = CameraState.STATE_WAITING_LOCK;
             if (captureSession != null) {
                 captureSession.capture(previewRequestBuilder.build(), captureCallback,
                         backgroundHandler);
@@ -717,7 +723,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             previewRequestBuilder.set(CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER,
                     CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER_START);
             // Tell #captureCallback to wait for the precapture sequence to be set.
-            cameraState = cameraState.STATE_WAITING_PRECAPTURE;
+            cameraState = CameraState.STATE_WAITING_PRECAPTURE;
             captureSession.capture(previewRequestBuilder.build(), captureCallback,
                     backgroundHandler);
         } catch (CameraAccessException e) {
@@ -744,7 +750,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             captureBuilder.set(CaptureRequest.CONTROL_AF_MODE,
                     CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
             captureBuilder.set(CaptureRequest.CONTROL_AE_MODE,
-                    CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
+                    CaptureRequest.CONTROL_AE_MODE_ON);
 
             // 保存する画像の向きを計算
             int pictureOrientation = 0;
@@ -753,11 +759,22 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                 deviceOrientation = (lastOrientation + 45) / 90 * 90;
             } else {
                 // 水平にした時はORIENTATION_UNKNOWNになるので、画面の向きで判断する
-                Configuration config = getResources().getConfiguration();
-                if (config.orientation == Configuration.ORIENTATION_PORTRAIT) {
-                    deviceOrientation = 0;
-                } else {
-                    deviceOrientation = 90;
+                int displayRotation = activity.getWindowManager().getDefaultDisplay().getRotation();
+                switch (displayRotation) {
+                    case Surface.ROTATION_0:
+                        deviceOrientation = 0;
+                        break;
+                    case Surface.ROTATION_90:
+                        deviceOrientation = 270;
+                        break;
+                    case Surface.ROTATION_180:
+                        deviceOrientation = 180;
+                        break;
+                    case Surface.ROTATION_270:
+                        deviceOrientation = 90;
+                        break;
+                    default:
+                        Log.e(TAG, "Display rotation is invalid: " + displayRotation);
                 }
             }
             CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
@@ -774,8 +791,6 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                     unlockFocus();
                 }
             };
-
-            captureSession.stopRepeating();
             captureSession.capture(captureBuilder.build(), CaptureCallback, null);
         } catch (CameraAccessException e) {
             e.printStackTrace();
@@ -786,19 +801,23 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
      * Unlock the focus. This method should be called when still image capture sequence is
      * finished.
      */
-    private void unlockFocus() {
+    private synchronized void unlockFocus() {
+        isLockFocus = false;
         try {
             // Reset the auto-focus trigger
             previewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
                     CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
             previewRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
-                    CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
-            captureSession.capture(previewRequestBuilder.build(), captureCallback,
-                    backgroundHandler);
+                    CaptureRequest.CONTROL_AE_MODE_ON);
+            if (captureSession != null) {
+                captureSession.capture(previewRequestBuilder.build(), captureCallback,
+                        backgroundHandler);
+                captureSession.setRepeatingRequest(previewRequest, captureCallback,
+                        backgroundHandler);
+            }
             // After this, the camera will go back to the normal state of preview.
             cameraState = CameraState.STATE_PREVIEW;
-            captureSession.setRepeatingRequest(previewRequest, captureCallback,
-                    backgroundHandler);
+
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -825,7 +844,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
             this.image = image;
             this.imageSizeMax = imageSizeMax;
             this.config = config;
-            cameraCompatCallback = callback;
+            this.cameraCompatCallback = callback;
             this.uiHandler = uiHandler;
         }
 
@@ -839,9 +858,9 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                 @Override
                 public void run() {
                     cameraCompatCallback.takePicture(bitmap);
+                    image.close();
                 }
             });
-            image.close();
         }
     }
 
@@ -857,5 +876,14 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                     (long) rhs.getWidth() * rhs.getHeight());
         }
 
+    }
+
+    @Override
+    public void setFlash(boolean enable) {
+        if (previewRequestBuilder == null || captureSession == null || cameraDevice == null) {
+            return;
+        }
+        isFlashEnable = enable;
+        createCameraPreviewSession();
     }
 }

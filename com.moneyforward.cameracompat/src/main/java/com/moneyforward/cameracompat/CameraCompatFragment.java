@@ -11,5 +11,7 @@ public interface CameraCompatFragment {
 
     void setCallbackListener(CameraCompatCallback listener);
 
+    void setFlash(boolean enable);
+
     CameraCompatFragment setAllowRetry(boolean allowRetry);
 }
