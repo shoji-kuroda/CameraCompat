@@ -103,6 +103,8 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
         ORIENTATIONS.append(Surface.ROTATION_270, 180);
     }
 
+    private boolean isSessionCreating = false;
+
 
     private enum CameraState {
         STATE_PREVIEW(0),
@@ -297,10 +299,10 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
     }
 
     @Override
-    public void onPause() {
+    public void onDestroy() {
+        super.onDestroy();
         closeCamera();
         stopBackgroundThread();
-        super.onPause();
     }
 
     public static Camera2Fragment newInstance() {
@@ -582,6 +584,12 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
      */
     private void createCameraPreviewSession() {
         try {
+
+            if (isSessionCreating) {
+                return;
+            }
+            isSessionCreating = true;
+
             SurfaceTexture texture = cameraPreview.getSurfaceTexture();
             assert texture != null;
 
@@ -594,6 +602,12 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
 
             cameraDevice.createCaptureSession(Arrays.asList(surface, imageReader.getSurface()),
                     new CameraCaptureSession.StateCallback() {
+
+                        @Override
+                        public void onReady(CameraCaptureSession session) {
+                            super.onReady(session);
+                            isSessionCreating = false;
+                        }
 
                         @Override
                         public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
@@ -618,7 +632,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                                 captureSession.setRepeatingRequest(previewRequest,
                                         captureCallback, backgroundHandler);
                             } catch (CameraAccessException e) {
-                                e.printStackTrace();
+                            } catch (IllegalStateException e) {
                             }
                         }
 
@@ -632,6 +646,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                     }, null
             );
         } catch (CameraAccessException e) {
+        } catch (IllegalStateException e) {
         }
     }
 
@@ -703,12 +718,12 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                     CameraMetadata.CONTROL_AF_TRIGGER_START);
             // Tell #captureCallback to wait for the lock.
             cameraState = CameraState.STATE_WAITING_LOCK;
-            if (captureSession != null) {
+            if (captureSession != null && !isSessionCreating) {
                 captureSession.capture(previewRequestBuilder.build(), captureCallback,
                         backgroundHandler);
             }
         } catch (CameraAccessException e) {
-            e.printStackTrace();
+        } catch (IllegalStateException e) {
         }
     }
 
@@ -809,7 +824,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
                     CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
             previewRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
                     CaptureRequest.CONTROL_AE_MODE_ON);
-            if (captureSession != null) {
+            if (captureSession != null && !isSessionCreating) {
                 captureSession.capture(previewRequestBuilder.build(), captureCallback,
                         backgroundHandler);
                 captureSession.setRepeatingRequest(previewRequest, captureCallback,
@@ -880,7 +895,7 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
 
     @Override
     public void setFlash(boolean enable) {
-        if (previewRequestBuilder == null || captureSession == null || cameraDevice == null) {
+        if (previewRequestBuilder == null || captureSession == null || cameraDevice == null || isSessionCreating) {
             return;
         }
         isFlashEnable = enable;
