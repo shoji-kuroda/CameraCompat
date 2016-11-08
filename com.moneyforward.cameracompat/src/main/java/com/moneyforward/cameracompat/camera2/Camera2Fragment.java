@@ -708,6 +708,9 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
      * Lock the focus as the first step for a still image capture.
      */
     private synchronized void lockFocus() {
+        if(previewRequestBuilder == null) {
+            return;
+        }
         if (this.isLockFocus) {
             return;
         }
@@ -734,6 +737,9 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
 
     private void runPrecaptureSequence() {
         try {
+            if(previewRequestBuilder == null) {
+                return;
+            }
             // This is how to tell the camera to trigger.
             previewRequestBuilder.set(CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER,
                     CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER_START);
@@ -819,6 +825,9 @@ public class Camera2Fragment extends Fragment implements CameraCompatFragment, F
     private synchronized void unlockFocus() {
         isLockFocus = false;
         try {
+            if(previewRequestBuilder == null) {
+                return;
+            }
             // Reset the auto-focus trigger
             previewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
                     CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
